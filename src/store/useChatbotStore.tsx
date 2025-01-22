@@ -39,6 +39,19 @@ export interface Chatbot {
       showSmartPrompts: boolean;
       message_placeholder?: string;
       autoScrollToNewMessages: boolean;
+      leadForm: {
+        enabled: boolean;
+        title: string;
+        description: string;
+        submitButtonText: string;
+        successMessage: string;
+        fields: Array<{
+          type: string;
+          label: string;
+          required: boolean;
+          options?: string[];
+        }>;
+      };
     };
   };
   private_settings: {

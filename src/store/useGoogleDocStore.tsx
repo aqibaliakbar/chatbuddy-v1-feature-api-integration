@@ -13,29 +13,20 @@ interface GoogleDocStore {
   isLoading: boolean;
   error: string | null;
   accessCode: string | null;
-	selectedFiles: GoogleDocFile[];
-	
-	
+  selectedFiles: GoogleDocFile[];
 
-  // Get auth URL and initiate OAuth
   getAuthUrl: (chatbotId: string) => Promise<void>;
 
-  // Fetch files using code
   fetchWithCode: (chatbotId: string, code: string) => Promise<void>;
 
-  // Store selected files
   setSelectedFiles: (files: GoogleDocFile[]) => void;
 
-  // Set access code
   setAccessCode: (code: string) => void;
 
-  // Train selected files
   trainFiles: (chatbotId: string) => Promise<void>;
 
-  // Toggle file selection
   toggleFileSelection: (fileId: string) => void;
 
-  // Clear store
   reset: () => void;
 }
 
@@ -78,7 +69,6 @@ const useGoogleDocStore = create<GoogleDocStore>((set, get) => ({
 
       const data: any = await response.json();
 
-      // Redirect to Google OAuth page
       window.location.href = data.authUrl;
     } catch (error) {
       set({
@@ -91,57 +81,53 @@ const useGoogleDocStore = create<GoogleDocStore>((set, get) => ({
     }
   },
 
-fetchWithCode: async (chatbotId: string, code: string) => {
-  set({ isLoading: true, error: null });
-  try {
-    const session = useAuthStore.getState().session;
-    if (!session?.access_token) {
-      throw new Error("No authentication token found");
-    }
-
-    const response = await fetch(
-      `${process.env.NEXT_PUBLIC_API_URLL}/v1/${chatbotId}/apps/google/files?code=${code}`,
-      {
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-        },
+  fetchWithCode: async (chatbotId: string, code: string) => {
+    set({ isLoading: true, error: null });
+    try {
+      const session = useAuthStore.getState().session;
+      if (!session?.access_token) {
+        throw new Error("No authentication token found");
       }
-    );
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || "Failed to fetch Google Doc data");
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URLL}/v1/${chatbotId}/apps/google/files?code=${code}`,
+        {
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = (await response.json()) as ApiError;
+        throw new Error(errorData.message || "Failed to fetch Google Doc data");
+      }
+
+      const data: any = await response.json();
+
+      const transformedFiles = data.files.files.map((file: any) => ({
+        id: file.id,
+        name: file.name,
+        mimetype: file.mimeType,
+        selected: false,
+      }));
+
+      set({
+        selectedFiles: transformedFiles,
+        accessCode: code,
+      });
+
+      return transformedFiles;
+    } catch (error) {
+      console.error("Store error:", error);
+      set({
+        error: error instanceof Error ? error.message : "Failed to fetch files",
+      });
+      throw error;
+    } finally {
+      set({ isLoading: false });
     }
-
-    const data = await response.json();
-    console.log("API Response:", data);  // Add this log
-
-    // Transform the data to match your interface
-    const transformedFiles = data.files.files.map((file: any) => ({
-      id: file.id,
-      name: file.name,
-      mimetype: file.mimeType,  // Note the case change here
-      selected: false
-    }));
-
-    console.log("Transformed files:", transformedFiles);  // Add this log
-    
-    set({
-      selectedFiles: transformedFiles,
-      accessCode: code,
-    });
-    
-    return transformedFiles;  // Return for debugging
-  } catch (error) {
-    console.error("Store error:", error);
-    set({
-      error: error instanceof Error ? error.message : "Failed to fetch files",
-    });
-    throw error;
-  } finally {
-    set({ isLoading: false });
-  }
-},
+  },
 
   setAccessCode: (code: string) => {
     set({ accessCode: code });

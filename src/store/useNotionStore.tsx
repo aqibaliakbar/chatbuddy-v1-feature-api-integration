@@ -16,20 +16,32 @@ interface NotionStore {
   accessCode: string | null;
   selectedPages: NotionPage[];
 
-  // Get auth URL and initiate OAuth
   getAuthUrl: (chatbotId: string) => Promise<void>;
-  // Fetch access token using code
   fetchWithCode: (chatbotId: string, code: string) => Promise<void>;
-  // Store selected pages
   setSelectedPages: (pages: NotionPage[]) => void;
-  // Set access code
   setAccessCode: (code: string) => void;
-  // Train selected pages
   trainPages: (chatbotId: string) => Promise<void>;
-  // Toggle page selection
   togglePageSelection: (pageId: string) => void;
-  // Clear store
   reset: () => void;
+}
+
+interface ApiError {
+  message: string;
+  error?: string;
+  statusCode?: number;
+}
+
+// API response types
+interface AuthUrlResponse {
+  authUrl: string;
+  state: string;
+}
+
+interface NotionPagesResponse {
+  pages: Array<{
+    id: string;
+    name: string;
+  }>;
 }
 
 const useNotionStore = create<NotionStore>()((set, get) => ({
@@ -47,7 +59,6 @@ const useNotionStore = create<NotionStore>()((set, get) => ({
         throw new Error("No authentication token found");
       }
 
-      // Get the current origin for the redirect URI
       const origin = window.location.origin;
       const redirectUri = `${origin}/add-sources/notion`;
 
@@ -62,10 +73,9 @@ const useNotionStore = create<NotionStore>()((set, get) => ({
 
       if (!response.ok) throw new Error("Failed to get auth URL");
 
-      const data = await response.json();
+      const data = (await response.json()) as AuthUrlResponse;
       set({ state: data.state });
 
-      // Redirect to Notion OAuth page
       window.location.href = data.authUrl;
     } catch (error) {
       set({
@@ -86,7 +96,6 @@ const useNotionStore = create<NotionStore>()((set, get) => ({
         throw new Error("No authentication token found");
       }
 
-      // Get the current origin for the redirect URI
       const redirectUri =
         "https://app.chatbuddy.io/dashboard/data-sources/apps";
 
@@ -102,16 +111,15 @@ const useNotionStore = create<NotionStore>()((set, get) => ({
       );
 
       if (!response.ok) {
-        const errorData = await response.json();
+        const errorData = (await response.json()) as ApiError;
         throw new Error(errorData.message || "Failed to fetch Notion data");
       }
 
-      const data = await response.json();
+      const data = (await response.json()) as NotionPagesResponse;
 
-      // Update selected pages from the response
       if (data.pages) {
         set({
-          selectedPages: data.pages.map((page: any) => ({
+          selectedPages: data.pages.map((page) => ({
             id: page.id,
             name: page.name,
             selected: false,
@@ -187,11 +195,10 @@ const useNotionStore = create<NotionStore>()((set, get) => ({
       );
 
       if (!response.ok) {
-        const errorData = await response.json();
+        const errorData = (await response.json()) as ApiError;
         throw new Error(errorData.message || "Failed to train pages");
       }
 
-      // If successful, leave isLoading as false
       set({ isLoading: false });
     } catch (error) {
       set({
@@ -201,6 +208,7 @@ const useNotionStore = create<NotionStore>()((set, get) => ({
       throw error;
     }
   },
+
   reset: () => {
     set({
       state: null,

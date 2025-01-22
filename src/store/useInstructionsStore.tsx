@@ -23,6 +23,22 @@ interface InstructionsStore {
   clearError: () => void;
 }
 
+// Type guard to validate instruction data
+function isInstruction(value: any): value is Instruction {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    typeof value.id === "string" &&
+    typeof value.message === "string" &&
+    typeof value.created_at === "string"
+  );
+}
+
+// Type guard to validate instruction array
+function isInstructionArray(value: any): value is Instruction[] {
+  return Array.isArray(value) && value.every(isInstruction);
+}
+
 const useInstructionsStore = create<InstructionsStore>((set) => ({
   instructions: [],
   isLoading: false,
@@ -50,6 +66,11 @@ const useInstructionsStore = create<InstructionsStore>((set) => ({
       }
 
       const data = await response.json();
+
+      if (!isInstructionArray(data)) {
+        throw new Error("Invalid instruction data received from server");
+      }
+
       set({ instructions: data, isLoading: false });
     } catch (error) {
       const message =
@@ -82,9 +103,14 @@ const useInstructionsStore = create<InstructionsStore>((set) => ({
         throw new Error("Failed to create instruction");
       }
 
-      const newInstruction = (await response.json()) as Instruction
+      const data = await response.json();
+
+      if (!isInstruction(data)) {
+        throw new Error("Invalid instruction data received from server");
+      }
+
       set((state) => ({
-        instructions: [...state.instructions, newInstruction],
+        instructions: [...state.instructions, data],
         isLoading: false,
       }));
     } catch (error) {

@@ -8,6 +8,12 @@ interface WordPressConnection {
   status: "connected" | "disconnected";
 }
 
+interface ApiError {
+  message: string;
+  error?: string;
+  statusCode?: number;
+}
+
 interface WordPressStore {
   isLoading: boolean;
   error: string | null;
@@ -49,7 +55,7 @@ const useWordPressStore = create<WordPressStore>((set) => ({
       );
 
       if (!response.ok) {
-        const errorData = await response.json();
+        const errorData = (await response.json()) as ApiError;
         throw new Error(
           errorData.message || "Failed to connect to WordPress site"
         );

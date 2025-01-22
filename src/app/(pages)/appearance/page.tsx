@@ -337,6 +337,14 @@ export default function AppearancePage() {
             initial_messages: config.welcomeMessage,
             buttonColor: config.buttonColor,
             backgroundColor: config.backgroundColor,
+            leadForm: {
+              enabled: false,
+              title: "",
+              description: "",
+              submitButtonText: "Submit",
+              successMessage: "Thank you for your submission!",
+              fields: [],
+            },
           },
         },
       };

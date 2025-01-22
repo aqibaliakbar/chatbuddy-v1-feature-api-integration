@@ -12,7 +12,6 @@ import { Switch } from "@/components/ui/switch";
 import useChatbotStore from "@/store/useChatbotStore";
 import React, { useEffect } from "react";
 
-
 type ContactField = "name" | "phone" | "email";
 
 interface SettingsDialogProps {
@@ -24,7 +23,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   const { chatbots, selectedChatbotId, updateChatbot } = useChatbotStore();
   const [title, setTitle] = React.useState("Let us know how to contact you");
   const [enabledFields, setEnabledFields] = React.useState<ContactField[]>([]);
-  const [showLeadForm, setShowLeadForm] = React.useState(true);
+  const [enabled, setEnabled] = React.useState(true);
 
   useEffect(() => {
     if (selectedChatbotId && chatbots.length > 0) {
@@ -32,13 +31,17 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
         (bot) => bot.chatbot_id === selectedChatbotId
       );
       if (currentChatbot) {
-        const leadForm = currentChatbot.chatbot.public_settings.leadForm;
-        setTitle(leadForm.title);
-        setShowLeadForm(leadForm.showLeadForm);
-        const fields: ContactField[] = [];
-        if (leadForm.name) fields.push("name");
-        if (leadForm.phone) fields.push("phone");
-        if (leadForm.email) fields.push("email");
+        const leadForm =
+          currentChatbot?.chatbot.public_settings.chatBotSettings.leadForm;
+        setTitle(leadForm?.title || "Let us know how to contact you");
+        setEnabled(leadForm?.enabled ?? true);
+
+        // Map fields from the leadForm structure
+        const fields: ContactField[] =
+          leadForm?.fields
+            .map((field) => field.type as ContactField)
+            .filter((field) => ["name", "phone", "email"].includes(field)) ||
+          [];
         setEnabledFields(fields);
       }
     }
@@ -53,18 +56,36 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   const handleSave = async () => {
     if (selectedChatbotId) {
       try {
-        await updateChatbot(selectedChatbotId, {
-          public_settings: {
-            leadForm: {
-              title,
-              showLeadForm,
-              name: enabledFields.includes("name"),
-              phone: enabledFields.includes("phone"),
-              email: enabledFields.includes("email"),
+        const currentChatbot = chatbots.find(
+          (bot) => bot.chatbot_id === selectedChatbotId
+        );
+
+        if (currentChatbot) {
+          // Convert enabled fields to the correct fields structure
+          const fields = enabledFields.map((fieldType) => ({
+            type: fieldType,
+            label: fieldType.charAt(0).toUpperCase() + fieldType.slice(1),
+            required: true,
+          }));
+
+          await updateChatbot(selectedChatbotId, {
+            public_settings: {
+              ...currentChatbot.chatbot.public_settings,
+              chatBotSettings: {
+                ...currentChatbot.chatbot.public_settings.chatBotSettings,
+                leadForm: {
+                  enabled,
+                  title,
+                  description: "Please fill out your contact information",
+                  submitButtonText: "Submit",
+                  successMessage: "Thank you for your submission!",
+                  fields,
+                },
+              },
             },
-          },
-        });
-        onOpenChange(false);
+          });
+          onOpenChange(false);
+        }
       } catch (error) {
         console.error("Failed to update lead form settings:", error);
       }
@@ -79,11 +100,11 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
         </DialogHeader>
         <div className="grid gap-4 py-4">
           <div className="flex items-center justify-between">
-            <Label htmlFor="showLeadForm">Enable Lead Form</Label>
-            <Switch checked={showLeadForm} onCheckedChange={setShowLeadForm} />
+            <Label htmlFor="enabled">Enable Lead Form</Label>
+            <Switch checked={enabled} onCheckedChange={setEnabled} />
           </div>
 
-          {showLeadForm && (
+          {enabled && (
             <>
               <div className="grid gap-2">
                 <Label htmlFor="title">Title</Label>
